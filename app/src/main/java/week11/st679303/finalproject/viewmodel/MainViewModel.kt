@@ -9,6 +9,7 @@ import kotlinx.coroutines.launch
 import week11.st679303.finalproject.data.BillRepository
 import week11.st679303.finalproject.model.BillItem
 import week7.st991662903.midpractice.utils.UiState
+import java.util.Date
 
 
 class MainViewModel: ViewModel() {
@@ -56,9 +57,9 @@ class MainViewModel: ViewModel() {
         _uiState.value = UiState.AuthRequired
     }
 
-    fun addBill(cname: String,amount: String,category: String){
+    fun addBill(cname: String,amount: String,category: String,pdate: Date){
         viewModelScope.launch {
-            repo.addBillItem(BillItem(cname =cname,amount=amount, category = category))
+            repo.addBillItem(BillItem(cname =cname,amount=amount, category = category, pdate = pdate))
             _uiState.value = UiState.ReportList
         }
     }

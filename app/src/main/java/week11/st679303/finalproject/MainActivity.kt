@@ -3,6 +3,9 @@ package week11.st679303.finalproject
 import android.net.Uri
 import android.os.Bundle
 import android.util.Log
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -169,8 +172,9 @@ fun LoginScreen(vm: MainViewModel) {
 
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 
+
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun BillScreen(vm: MainViewModel) {
     val context = LocalContext.current
@@ -178,6 +182,7 @@ fun BillScreen(vm: MainViewModel) {
     val extractedText = remember { mutableStateOf("") }
     val company = remember { mutableStateOf("") }
     val total = remember { mutableStateOf("") }
+    val date = remember { mutableStateOf("") }
     val category = remember { mutableStateOf("Other") }
     val isLoading = remember { mutableStateOf(false) }
     val errorMessage = remember { mutableStateOf<String?>(null) }
@@ -197,6 +202,32 @@ fun BillScreen(vm: MainViewModel) {
         "Other"
     )
 
+    // Function to parse date string to Date object
+    fun parseDateString(dateString: String): Date? {
+        val dateFormats = listOf(
+            SimpleDateFormat("MM/dd/yyyy", Locale.getDefault()),
+            SimpleDateFormat("MM-dd-yyyy", Locale.getDefault()),
+            SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()),
+            SimpleDateFormat("dd-MM-yyyy", Locale.getDefault()),
+            SimpleDateFormat("yyyy/MM/dd", Locale.getDefault()),
+            SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()),
+            SimpleDateFormat("MMMM dd, yyyy", Locale.getDefault()),
+            SimpleDateFormat("MMM dd, yyyy", Locale.getDefault()),
+            SimpleDateFormat("dd MMMM yyyy", Locale.getDefault()),
+            SimpleDateFormat("dd MMM yyyy", Locale.getDefault())
+        )
+
+        for (format in dateFormats) {
+            try {
+                format.isLenient = false
+                return format.parse(dateString)
+            } catch (e: Exception) {
+                // Try next format
+            }
+        }
+        return null
+    }
+
     fun inferCategoryFromCompany(companyName: String): String {
         val keywords = mapOf(
             "Food & Dining" to listOf("restaurant", "cafe", "coffee", "pizza", "burger", "grill", "diner", "bistro", "kitchen", "bar"),
@@ -214,12 +245,51 @@ fun BillScreen(vm: MainViewModel) {
         }?.key ?: "Other"
     }
 
+    fun extractDateFromText(text: String): String {
+        val lines = text.lines().map { it.trim() }.filter { it.isNotEmpty() }
+
+        val datePatterns = listOf(
+            Regex("""(\d{1,2})[/-](\d{1,2})[/-](\d{4})"""),
+            Regex("""(\d{1,2})[/-](\d{1,2})[/-](\d{2,4})"""),
+            Regex("""(\d{4})[/-](\d{1,2})[/-](\d{1,2})"""),
+            Regex("""(?i)(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\s+(\d{1,2}),?\s+(\d{4})"""),
+            Regex("""(?i)(\d{1,2})\s+(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\s+(\d{4})""")
+        )
+
+        for (line in lines) {
+            if (line.lowercase().contains("date") ||
+                line.lowercase().contains("invoice") ||
+                line.lowercase().contains("receipt")) {
+
+                for (pattern in datePatterns) {
+                    val match = pattern.find(line)
+                    if (match != null) {
+                        return match.value
+                    }
+                }
+            }
+
+            for (pattern in datePatterns) {
+                val match = pattern.find(line)
+                if (match != null) {
+                    return match.value
+                }
+            }
+        }
+
+        val currentDate = SimpleDateFormat("MM/dd/yyyy", Locale.getDefault())
+            .format(Date())
+        return currentDate
+    }
+
     fun extractDetailsFromText(text: String) {
         val lines = text.lines().map { it.trim() }.filter { it.isNotEmpty() }
 
         var foundCompany = false
         var foundTotal = false
         var largestAmount = 0.0
+
+        date.value = extractDateFromText(text)
 
         for ((index, line) in lines.withIndex()) {
             if (!foundCompany && index < 10) {
@@ -297,6 +367,7 @@ fun BillScreen(vm: MainViewModel) {
                     errorMessage.value = "No text detected in the image. Please try another receipt."
                     company.value = ""
                     total.value = ""
+                    date.value = ""
                     category.value = "Other"
                 }
             } catch (e: Exception) {
@@ -304,6 +375,7 @@ fun BillScreen(vm: MainViewModel) {
                 extractedText.value = ""
                 company.value = ""
                 total.value = ""
+                date.value = ""
                 category.value = "Other"
             } finally {
                 isLoading.value = false
@@ -486,6 +558,22 @@ fun BillScreen(vm: MainViewModel) {
                     Spacer(Modifier.height(16.dp))
 
                     OutlinedTextField(
+                        value = date.value,
+                        onValueChange = { date.value = it },
+                        label = { Text("Date") },
+                        placeholder = { Text("MM/DD/YYYY") },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true,
+                        shape = RoundedCornerShape(12.dp),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = MaterialTheme.colorScheme.primary,
+                            unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f)
+                        )
+                    )
+
+                    Spacer(Modifier.height(16.dp))
+
+                    OutlinedTextField(
                         value = total.value,
                         onValueChange = {
                             if (it.isEmpty() || it.matches(Regex("^\\d*\\.?\\d{0,2}$"))) {
@@ -504,7 +592,6 @@ fun BillScreen(vm: MainViewModel) {
                     )
 
                     Spacer(Modifier.height(16.dp))
-
 
                     ExposedDropdownMenuBox(
                         expanded = showCategoryDropdown.value,
@@ -545,31 +632,47 @@ fun BillScreen(vm: MainViewModel) {
 
                     Spacer(Modifier.height(24.dp))
 
-
                     Button(
                         onClick = {
                             when {
                                 company.value.isBlank() -> {
                                     errorMessage.value = "Please enter a company name"
                                 }
+                                date.value.isBlank() -> {
+                                    errorMessage.value = "Please enter a date"
+                                }
                                 total.value.isBlank() || total.value.toDoubleOrNull() == null -> {
                                     errorMessage.value = "Please enter a valid amount"
                                 }
                                 else -> {
+                                    // Parse the date string to Date object
+                                    val parsedDate = parseDateString(date.value)
 
+                                    if (parsedDate != null) {
 
-                                    Toast.makeText(
-                                        context,
-                                        "Receipt saved successfully!",
-                                        Toast.LENGTH_SHORT
-                                    ).show()
+                                        vm.addBill(
+                                            cname = company.value,
+                                            amount = total.value,
+                                            pdate = parsedDate,
+                                            category = category.value
+                                        )
 
-                                    company.value = ""
-                                    total.value = ""
-                                    category.value = "Other"
-                                    imageUri.value = null
-                                    extractedText.value = ""
-                                    errorMessage.value = null
+                                        Toast.makeText(
+                                            context,
+                                            "Receipt saved successfully!",
+                                            Toast.LENGTH_SHORT
+                                        ).show()
+
+                                        company.value = ""
+                                        total.value = ""
+                                        date.value = ""
+                                        category.value = "Other"
+                                        imageUri.value = null
+                                        extractedText.value = ""
+                                        errorMessage.value = null
+                                    } else {
+                                        errorMessage.value = "Invalid date format. Please use MM/DD/YYYY"
+                                    }
                                 }
                             }
                         },
@@ -577,7 +680,7 @@ fun BillScreen(vm: MainViewModel) {
                             .fillMaxWidth()
                             .height(50.dp),
                         shape = RoundedCornerShape(12.dp),
-                        enabled = company.value.isNotBlank() && total.value.isNotBlank()
+                        enabled = company.value.isNotBlank() && total.value.isNotBlank() && date.value.isNotBlank()
                     ) {
                         Text("Save Receipt", fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
                     }

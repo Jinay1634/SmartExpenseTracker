@@ -13,8 +13,8 @@ class BillRepository{
     private val db = FirebaseFirestore.getInstance()
 
     suspend fun addBillItem(bill: BillItem){
-        db.collection("report").add(
-            BillItem(useremail = auth.currentUser?.email, cname = bill.cname, amount = bill.amount, category = bill.category)
+        db.collection("bills").add(
+            BillItem(useremail = auth.currentUser?.email, cname = bill.cname, amount = bill.amount, category = bill.category, pdate = bill.pdate)
         ).await()
     }
 
