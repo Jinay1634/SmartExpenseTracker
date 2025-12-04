@@ -18,6 +18,21 @@ class BillRepository{
         ).await()
     }
 
+    suspend fun deleteBillItem(billId: String) {
+        db.collection("bills").document(billId).delete().await()
+    }
+
+    suspend fun updateBillItem(billId: String, bill: BillItem) {
+        db.collection("bills").document(billId).update(
+            mapOf(
+                "cname" to bill.cname,
+                "amount" to bill.amount,
+                "category" to bill.category,
+                "pdate" to bill.pdate
+            )
+        ).await()
+    }
+
     fun getBills(): Flow<List<BillItem>> = callbackFlow{
         val user = auth.currentUser
         if (user == null) {

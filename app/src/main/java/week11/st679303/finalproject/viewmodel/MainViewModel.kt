@@ -21,6 +21,9 @@ class MainViewModel: ViewModel() {
     val results: StateFlow<List<BillItem>> = _results
     private val _message = MutableStateFlow<String?>(null)
     val message: StateFlow<String?> = _message
+    private val _editingBill = MutableStateFlow<BillItem?>(null)
+    val editingBill: StateFlow<BillItem?> = _editingBill
+
     init {
         auth.addAuthStateListener { firebaseAuth ->
             val user = firebaseAuth.currentUser
@@ -64,6 +67,42 @@ class MainViewModel: ViewModel() {
             _uiState.value = UiState.ReportList
         }
     }
+
+
+    fun deleteBill(billId: String) {
+        viewModelScope.launch {
+            try {
+                repo.deleteBillItem(billId)
+                _message.value = "Bill deleted successfully"
+            } catch (e: Exception) {
+                _message.value = e.localizedMessage ?: "Failed to delete bill"
+            }
+        }
+    }
+
+    fun updateBill(billId: String, cname: String, amount: String, category: String, pdate: Date) {
+        viewModelScope.launch {
+            try {
+                repo.updateBillItem(billId, BillItem(cname = cname, amount = amount, category = category, pdate = pdate))
+                _message.value = "Bill updated successfully"
+                _editingBill.value = null
+                _uiState.value = UiState.ReportList
+            } catch (e: Exception) {
+                _message.value = e.localizedMessage ?: "Failed to update bill"
+            }
+        }
+    }
+
+    fun startEditing(bill: BillItem) {
+        _editingBill.value = bill
+        _uiState.value = UiState.Authenticated
+    }
+
+    fun cancelEditing() {
+        _editingBill.value = null
+    }
+
+
     private fun getBills() {
         viewModelScope.launch {
             repo.getBills().collect { list ->

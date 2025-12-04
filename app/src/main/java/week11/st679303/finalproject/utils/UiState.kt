@@ -5,4 +5,6 @@ sealed class UiState {
     object AuthRequired : UiState()
     object Authenticated : UiState()
     object ReportList : UiState()
+
+
 }
