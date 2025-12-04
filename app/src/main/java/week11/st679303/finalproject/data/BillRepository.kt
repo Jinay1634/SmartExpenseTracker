@@ -25,7 +25,7 @@ class BillRepository{
             close()
             return@callbackFlow
         }
-        val reg = db.collection("report").addSnapshotListener { snapshot, _ ->
+        val reg = db.collection("bills").whereEqualTo("useremail", user.email).addSnapshotListener { snapshot, _ ->
             trySend(snapshot?.toObjects(BillItem::class.java) ?: emptyList())
         }
         awaitClose { reg.remove() }

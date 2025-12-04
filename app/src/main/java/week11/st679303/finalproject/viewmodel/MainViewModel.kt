@@ -72,4 +72,16 @@ class MainViewModel: ViewModel() {
         }
     }
 
+    fun backToAddBill(){
+        viewModelScope.launch {
+            _uiState.value = UiState.Authenticated
+        }
+    }
+
+    fun goToBillList(){
+        viewModelScope.launch {
+            _uiState.value = UiState.ReportList
+        }
+    }
+
 }

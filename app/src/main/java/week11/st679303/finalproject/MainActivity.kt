@@ -12,12 +12,14 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -26,6 +28,9 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
@@ -39,12 +44,17 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
+import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -56,6 +66,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
@@ -63,6 +74,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -82,6 +94,7 @@ import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody
+import week11.st679303.finalproject.model.BillItem
 import week11.st679303.finalproject.ui.theme.SmartExpenseTrackerTheme
 import week11.st679303.finalproject.viewmodel.MainViewModel
 import week7.st991662903.midpractice.utils.UiState
@@ -100,7 +113,7 @@ class MainActivity : ComponentActivity() {
                 UiState.Loading -> Text("Loading...")
                 UiState.AuthRequired -> LoginScreen(vm)
                 UiState.Authenticated -> BillScreen(vm)
-                UiState.ReportList ->Text("List...")
+                UiState.ReportList ->Text("List")
             }
         }
     }
@@ -172,8 +185,6 @@ fun LoginScreen(vm: MainViewModel) {
 
 }
 
-
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun BillScreen(vm: MainViewModel) {
@@ -202,7 +213,6 @@ fun BillScreen(vm: MainViewModel) {
         "Other"
     )
 
-    // Function to parse date string to Date object
     fun parseDateString(dateString: String): Date? {
         val dateFormats = listOf(
             SimpleDateFormat("MM/dd/yyyy", Locale.getDefault()),
@@ -222,7 +232,6 @@ fun BillScreen(vm: MainViewModel) {
                 format.isLenient = false
                 return format.parse(dateString)
             } catch (e: Exception) {
-                // Try next format
             }
         }
         return null
@@ -394,138 +403,49 @@ fun BillScreen(vm: MainViewModel) {
         }
     }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
-            .padding(16.dp)
-            .verticalScroll(rememberScrollState())
-    ) {
-        Text(
-            "Receipt Scanner",
-            style = MaterialTheme.typography.headlineLarge,
-            fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.primary,
-            modifier = Modifier.padding(bottom = 8.dp)
-        )
-        Text(
-            "Scan and manage your receipts easily",
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.padding(bottom = 24.dp)
-        )
-
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
-            colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surface
-            )
+    Box(modifier = Modifier.fillMaxSize()) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(MaterialTheme.colorScheme.background)
+                .padding(16.dp)
+                .verticalScroll(rememberScrollState())
         ) {
-            Column(
-                modifier = Modifier.padding(20.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                imageUri.value?.let { uri ->
-                    Image(
-                        painter = rememberAsyncImagePainter(model = uri),
-                        contentDescription = "Selected receipt",
-                        modifier = Modifier
-                            .height(240.dp)
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(12.dp))
-                            .border(
-                                width = 1.dp,
-                                color = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f),
-                                shape = RoundedCornerShape(12.dp)
-                            ),
-                        contentScale = ContentScale.Fit
-                    )
-                } ?: Box(
-                    modifier = Modifier
-                        .height(240.dp)
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(12.dp))
-                        .background(MaterialTheme.colorScheme.surfaceVariant),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        "No receipt selected",
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        style = MaterialTheme.typography.bodyLarge
-                    )
-                }
-
-                Spacer(Modifier.height(16.dp))
-
-                Button(
-                    onClick = { launcher.launch("image/*") },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(50.dp),
-                    shape = RoundedCornerShape(12.dp),
-                    enabled = !isLoading.value
-                ) {
-                    Text("Select Receipt Image", fontSize = 16.sp)
-                }
-            }
-        }
-
-        Spacer(Modifier.height(24.dp))
-
-        if (isLoading.value) {
-            Card(
+            Row(
                 modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.primaryContainer
-                )
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp),
-                    horizontalArrangement = Arrangement.Center,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(24.dp),
-                        color = MaterialTheme.colorScheme.primary
-                    )
-                    Spacer(Modifier.width(12.dp))
+                Column {
                     Text(
-                        "Extracting details from receipt...",
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = MaterialTheme.colorScheme.onPrimaryContainer
+                        "Receipt Scanner",
+                        style = MaterialTheme.typography.headlineLarge,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.padding(bottom = 8.dp)
                     )
-                }
-            }
-            Spacer(Modifier.height(24.dp))
-        }
-
-        errorMessage.value?.let { error ->
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.errorContainer
-                )
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
                     Text(
-                        error,
+                        "Scan and manage your receipts easily",
                         style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onErrorContainer
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(bottom = 24.dp)
+                    )
+                }
+
+                TextButton(
+                    onClick = { vm.goToBillList() },
+                    colors = ButtonDefaults.textButtonColors(
+                        contentColor = MaterialTheme.colorScheme.primary
+                    )
+                ) {
+                    Text(
+                        "View All",
+                        fontWeight = FontWeight.SemiBold,
+                        fontSize = 16.sp
                     )
                 }
             }
-            Spacer(Modifier.height(24.dp))
-        }
 
-        if (company.value.isNotEmpty() || total.value.isNotEmpty()) {
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
@@ -533,162 +453,273 @@ fun BillScreen(vm: MainViewModel) {
                     containerColor = MaterialTheme.colorScheme.surface
                 )
             ) {
-                Column(modifier = Modifier.padding(20.dp)) {
-                    Text(
-                        "Receipt Details",
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurface,
-                        modifier = Modifier.padding(bottom = 20.dp)
-                    )
-
-                    OutlinedTextField(
-                        value = company.value,
-                        onValueChange = { company.value = it },
-                        label = { Text("Company / Store Name") },
-                        modifier = Modifier.fillMaxWidth(),
-                        singleLine = true,
-                        shape = RoundedCornerShape(12.dp),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = MaterialTheme.colorScheme.primary,
-                            unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f)
-                        )
-                    )
-
-                    Spacer(Modifier.height(16.dp))
-
-                    OutlinedTextField(
-                        value = date.value,
-                        onValueChange = { date.value = it },
-                        label = { Text("Date") },
-                        placeholder = { Text("MM/DD/YYYY") },
-                        modifier = Modifier.fillMaxWidth(),
-                        singleLine = true,
-                        shape = RoundedCornerShape(12.dp),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = MaterialTheme.colorScheme.primary,
-                            unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f)
-                        )
-                    )
-
-                    Spacer(Modifier.height(16.dp))
-
-                    OutlinedTextField(
-                        value = total.value,
-                        onValueChange = {
-                            if (it.isEmpty() || it.matches(Regex("^\\d*\\.?\\d{0,2}$"))) {
-                                total.value = it
-                            }
-                        },
-                        label = { Text("Total Amount") },
-                        modifier = Modifier.fillMaxWidth(),
-                        singleLine = true,
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                        shape = RoundedCornerShape(12.dp),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = MaterialTheme.colorScheme.primary,
-                            unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f)
-                        )
-                    )
-
-                    Spacer(Modifier.height(16.dp))
-
-                    ExposedDropdownMenuBox(
-                        expanded = showCategoryDropdown.value,
-                        onExpandedChange = { showCategoryDropdown.value = it }
-                    ) {
-                        OutlinedTextField(
-                            value = category.value,
-                            onValueChange = {},
-                            readOnly = true,
-                            label = { Text("Category") },
-                            trailingIcon = {
-                                ExposedDropdownMenuDefaults.TrailingIcon(expanded = showCategoryDropdown.value)
-                            },
+                Column(
+                    modifier = Modifier.padding(20.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    imageUri.value?.let { uri ->
+                        Image(
+                            painter = rememberAsyncImagePainter(model = uri),
+                            contentDescription = "Selected receipt",
                             modifier = Modifier
+                                .height(240.dp)
                                 .fillMaxWidth()
-                                .menuAnchor(),
+                                .clip(RoundedCornerShape(12.dp))
+                                .border(
+                                    width = 1.dp,
+                                    color = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f),
+                                    shape = RoundedCornerShape(12.dp)
+                                ),
+                            contentScale = ContentScale.Fit
+                        )
+                    } ?: Box(
+                        modifier = Modifier
+                            .height(240.dp)
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(MaterialTheme.colorScheme.surfaceVariant),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            "No receipt selected",
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            style = MaterialTheme.typography.bodyLarge
+                        )
+                    }
+
+                    Spacer(Modifier.height(16.dp))
+
+                    Button(
+                        onClick = { launcher.launch("image/*") },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(50.dp),
+                        shape = RoundedCornerShape(12.dp),
+                        enabled = !isLoading.value
+                    ) {
+                        Text("Select Receipt Image", fontSize = 16.sp)
+                    }
+                }
+            }
+
+            Spacer(Modifier.height(24.dp))
+
+            if (isLoading.value) {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.primaryContainer
+                    )
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
+                        horizontalArrangement = Arrangement.Center,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(24.dp),
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                        Spacer(Modifier.width(12.dp))
+                        Text(
+                            "Extracting details from receipt...",
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = MaterialTheme.colorScheme.onPrimaryContainer
+                        )
+                    }
+                }
+                Spacer(Modifier.height(24.dp))
+            }
+
+            errorMessage.value?.let { error ->
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.errorContainer
+                    )
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            error,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onErrorContainer
+                        )
+                    }
+                }
+                Spacer(Modifier.height(24.dp))
+            }
+
+            if (company.value.isNotEmpty() || total.value.isNotEmpty()) {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.surface
+                    )
+                ) {
+                    Column(modifier = Modifier.padding(20.dp)) {
+                        Text(
+                            "Receipt Details",
+                            style = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurface,
+                            modifier = Modifier.padding(bottom = 20.dp)
+                        )
+
+                        OutlinedTextField(
+                            value = company.value,
+                            onValueChange = { company.value = it },
+                            label = { Text("Company / Store Name") },
+                            modifier = Modifier.fillMaxWidth(),
+                            singleLine = true,
                             shape = RoundedCornerShape(12.dp),
                             colors = OutlinedTextFieldDefaults.colors(
                                 focusedBorderColor = MaterialTheme.colorScheme.primary,
                                 unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f)
                             )
                         )
-                        ExposedDropdownMenu(
+
+                        Spacer(Modifier.height(16.dp))
+
+                        OutlinedTextField(
+                            value = date.value,
+                            onValueChange = { date.value = it },
+                            label = { Text("Date") },
+                            placeholder = { Text("MM/DD/YYYY") },
+                            modifier = Modifier.fillMaxWidth(),
+                            singleLine = true,
+                            shape = RoundedCornerShape(12.dp),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = MaterialTheme.colorScheme.primary,
+                                unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f)
+                            )
+                        )
+
+                        Spacer(Modifier.height(16.dp))
+
+                        OutlinedTextField(
+                            value = total.value,
+                            onValueChange = {
+                                if (it.isEmpty() || it.matches(Regex("^\\d*\\.?\\d{0,2}$"))) {
+                                    total.value = it
+                                }
+                            },
+                            label = { Text("Total Amount") },
+                            modifier = Modifier.fillMaxWidth(),
+                            singleLine = true,
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                            shape = RoundedCornerShape(12.dp),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = MaterialTheme.colorScheme.primary,
+                                unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f)
+                            )
+                        )
+
+                        Spacer(Modifier.height(16.dp))
+
+                        ExposedDropdownMenuBox(
                             expanded = showCategoryDropdown.value,
-                            onDismissRequest = { showCategoryDropdown.value = false }
+                            onExpandedChange = { showCategoryDropdown.value = it }
                         ) {
-                            categories.forEach { categoryOption ->
-                                DropdownMenuItem(
-                                    text = { Text(categoryOption) },
-                                    onClick = {
-                                        category.value = categoryOption
-                                        showCategoryDropdown.value = false
-                                    }
+                            OutlinedTextField(
+                                value = category.value,
+                                onValueChange = {},
+                                readOnly = true,
+                                label = { Text("Category") },
+                                trailingIcon = {
+                                    ExposedDropdownMenuDefaults.TrailingIcon(expanded = showCategoryDropdown.value)
+                                },
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .menuAnchor(),
+                                shape = RoundedCornerShape(12.dp),
+                                colors = OutlinedTextFieldDefaults.colors(
+                                    focusedBorderColor = MaterialTheme.colorScheme.primary,
+                                    unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f)
                                 )
+                            )
+                            ExposedDropdownMenu(
+                                expanded = showCategoryDropdown.value,
+                                onDismissRequest = { showCategoryDropdown.value = false }
+                            ) {
+                                categories.forEach { categoryOption ->
+                                    DropdownMenuItem(
+                                        text = { Text(categoryOption) },
+                                        onClick = {
+                                            category.value = categoryOption
+                                            showCategoryDropdown.value = false
+                                        }
+                                    )
+                                }
                             }
                         }
-                    }
 
-                    Spacer(Modifier.height(24.dp))
+                        Spacer(Modifier.height(24.dp))
 
-                    Button(
-                        onClick = {
-                            when {
-                                company.value.isBlank() -> {
-                                    errorMessage.value = "Please enter a company name"
-                                }
-                                date.value.isBlank() -> {
-                                    errorMessage.value = "Please enter a date"
-                                }
-                                total.value.isBlank() || total.value.toDoubleOrNull() == null -> {
-                                    errorMessage.value = "Please enter a valid amount"
-                                }
-                                else -> {
-                                    // Parse the date string to Date object
-                                    val parsedDate = parseDateString(date.value)
+                        Button(
+                            onClick = {
+                                when {
+                                    company.value.isBlank() -> {
+                                        errorMessage.value = "Please enter a company name"
+                                    }
+                                    date.value.isBlank() -> {
+                                        errorMessage.value = "Please enter a date"
+                                    }
+                                    total.value.isBlank() || total.value.toDoubleOrNull() == null -> {
+                                        errorMessage.value = "Please enter a valid amount"
+                                    }
+                                    else -> {
+                                        val parsedDate = parseDateString(date.value)
 
-                                    if (parsedDate != null) {
+                                        if (parsedDate != null) {
 
-                                        vm.addBill(
-                                            cname = company.value,
-                                            amount = total.value,
-                                            pdate = parsedDate,
-                                            category = category.value
-                                        )
+                                            vm.addBill(
+                                                cname = company.value,
+                                                amount = total.value,
+                                                pdate = parsedDate,
+                                                category = category.value
+                                            )
 
-                                        Toast.makeText(
-                                            context,
-                                            "Receipt saved successfully!",
-                                            Toast.LENGTH_SHORT
-                                        ).show()
+                                            Toast.makeText(
+                                                context,
+                                                "Receipt saved successfully!",
+                                                Toast.LENGTH_SHORT
+                                            ).show()
 
-                                        company.value = ""
-                                        total.value = ""
-                                        date.value = ""
-                                        category.value = "Other"
-                                        imageUri.value = null
-                                        extractedText.value = ""
-                                        errorMessage.value = null
-                                    } else {
-                                        errorMessage.value = "Invalid date format. Please use MM/DD/YYYY"
+                                            company.value = ""
+                                            total.value = ""
+                                            date.value = ""
+                                            category.value = "Other"
+                                            imageUri.value = null
+                                            extractedText.value = ""
+                                            errorMessage.value = null
+                                        } else {
+                                            errorMessage.value = "Invalid date format. Please use MM/DD/YYYY"
+                                        }
                                     }
                                 }
-                            }
-                        },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(50.dp),
-                        shape = RoundedCornerShape(12.dp),
-                        enabled = company.value.isNotBlank() && total.value.isNotBlank() && date.value.isNotBlank()
-                    ) {
-                        Text("Save Receipt", fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
+                            },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(50.dp),
+                            shape = RoundedCornerShape(12.dp),
+                            enabled = company.value.isNotBlank() && total.value.isNotBlank() && date.value.isNotBlank()
+                        ) {
+                            Text("Save Receipt", fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
+                        }
                     }
                 }
             }
-        }
 
-        Spacer(Modifier.height(32.dp))
+            Spacer(Modifier.height(32.dp))
+        }
     }
 }
 
