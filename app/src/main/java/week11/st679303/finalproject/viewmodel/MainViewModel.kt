@@ -52,6 +52,7 @@ class MainViewModel: ViewModel() {
             }
     }
 
+
     fun logout() {
         auth.signOut()
         _uiState.value = UiState.AuthRequired
