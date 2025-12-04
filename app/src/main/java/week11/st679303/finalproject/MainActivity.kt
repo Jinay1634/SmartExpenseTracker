@@ -16,6 +16,7 @@ import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -40,6 +41,8 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DatePicker
+import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
@@ -55,6 +58,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -736,6 +740,8 @@ fun BillList(vm: MainViewModel, Bills: List<BillItem>) {
         filteredBills.sumOf { it.amount?.toDoubleOrNull() ?: 0.0 }
     }
 
+    val editingBill = remember { mutableStateOf<BillItem?>(null) }
+
     Box(modifier = Modifier.fillMaxSize()) {
         Column(
             modifier = Modifier
@@ -862,7 +868,13 @@ fun BillList(vm: MainViewModel, Bills: List<BillItem>) {
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     items(filteredBills) { bill ->
-                        BillItemCard(bill)
+                        BillItemCard(
+                            bill = bill,
+                            vm = vm,
+                            isEditing = editingBill.value?.id == bill.id,
+                            onEditClick = { editingBill.value = bill },
+                            onCancelEdit = { editingBill.value = null }
+                        )
                     }
                 }
             }
@@ -899,8 +911,15 @@ fun BillList(vm: MainViewModel, Bills: List<BillItem>) {
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun BillItemCard(bill: BillItem) {
+fun BillItemCard(
+    bill: BillItem,
+    vm: MainViewModel,
+    isEditing: Boolean,
+    onEditClick: () -> Unit,
+    onCancelEdit: () -> Unit
+) {
     val categoryColors = mapOf(
         "Food & Dining" to Color(0xFFFF6B6B),
         "Groceries" to Color(0xFF4ECDC4),
@@ -929,6 +948,15 @@ fun BillItemCard(bill: BillItem) {
     val dateFormat = SimpleDateFormat("MMM dd, yyyy", Locale.getDefault())
     val formattedDate = bill.pdate?.let { dateFormat.format(it) } ?: "Unknown date"
 
+    val editedCname = remember(bill) { mutableStateOf(bill.cname ?: "") }
+    val editedAmount = remember(bill) { mutableStateOf(bill.amount ?: "") }
+    val editedCategory = remember(bill) { mutableStateOf(bill.category ?: "Other") }
+    val editedDate = remember(bill) { mutableStateOf(bill.pdate ?: Date()) }
+    val showDatePicker = remember { mutableStateOf(false) }
+    val datePickerState = rememberDatePickerState(initialSelectedDateMillis = editedDate.value.time)
+
+    val categories = listOf("Food & Dining", "Groceries", "Gas & Fuel", "Shopping", "Pharmacy", "Electronics", "Home Improvement", "Other")
+
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -939,80 +967,272 @@ fun BillItemCard(bill: BillItem) {
         ),
         shape = RoundedCornerShape(16.dp)
     ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(56.dp)
-                    .background(
-                        color = categoryColor.copy(alpha = 0.2f),
-                        shape = RoundedCornerShape(12.dp)
-                    ),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    text = categoryEmoji,
-                    style = MaterialTheme.typography.headlineMedium,
-                    fontSize = 28.sp
-                )
-            }
-
-            Spacer(Modifier.width(16.dp))
-
+        if (isEditing) {
             Column(
-                modifier = Modifier.weight(1f)
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(20.dp)
             ) {
-                Text(
-                    text = bill.cname ?: "Unknown",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSurface,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
+                OutlinedTextField(
+                    value = editedCname.value,
+                    onValueChange = { editedCname.value = it },
+                    label = { Text("Company Name") },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                    shape = RoundedCornerShape(12.dp)
                 )
-                Spacer(Modifier.height(4.dp))
-                Row(
-                    verticalAlignment = Alignment.CenterVertically
+
+                Spacer(Modifier.height(16.dp))
+
+                OutlinedTextField(
+                    value = editedAmount.value,
+                    onValueChange = { editedAmount.value = it },
+                    label = { Text("Amount") },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                    shape = RoundedCornerShape(12.dp)
+                )
+
+                Spacer(Modifier.height(16.dp))
+
+                var expandedCategory by remember { mutableStateOf(false) }
+                ExposedDropdownMenuBox(
+                    expanded = expandedCategory,
+                    onExpandedChange = { expandedCategory = !expandedCategory }
                 ) {
-                    Surface(
-                        color = categoryColor.copy(alpha = 0.15f),
-                        shape = RoundedCornerShape(8.dp)
-                    ) {
-                        Text(
-                            text = bill.category ?: "Other",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = categoryColor,
-                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                            fontWeight = FontWeight.Medium
-                        )
-                    }
-                    Spacer(Modifier.width(8.dp))
-                    Text(
-                        text = formattedDate,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    OutlinedTextField(
+                        value = editedCategory.value,
+                        onValueChange = { },
+                        readOnly = true,
+                        label = { Text("Category") },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .menuAnchor(),
+                        trailingIcon = {
+                            ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedCategory)
+                        },
+                        shape = RoundedCornerShape(12.dp)
                     )
+                    ExposedDropdownMenu(
+                        expanded = expandedCategory,
+                        onDismissRequest = { expandedCategory = false }
+                    ) {
+                        categories.forEach { category ->
+                            DropdownMenuItem(
+                                text = { Text(category) },
+                                onClick = {
+                                    editedCategory.value = category
+                                    expandedCategory = false
+                                }
+                            )
+                        }
+                    }
+                }
+
+                Spacer(Modifier.height(16.dp))
+
+                OutlinedTextField(
+                    value = dateFormat.format(editedDate.value),
+                    onValueChange = { },
+                    readOnly = true,
+                    label = { Text("Purchase Date") },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { showDatePicker.value = true },
+                    enabled = false,
+                    colors = OutlinedTextFieldDefaults.colors(
+                        disabledTextColor = MaterialTheme.colorScheme.onSurface,
+                        disabledBorderColor = MaterialTheme.colorScheme.outline,
+                        disabledLabelColor = MaterialTheme.colorScheme.onSurfaceVariant
+                    ),
+                    shape = RoundedCornerShape(12.dp),
+                    trailingIcon = {
+                        Box(
+                            modifier = Modifier
+                                .clickable { showDatePicker.value = true }
+                                .padding(8.dp)
+                        ) {
+                            Text(
+                                text = "📅",
+                                style = MaterialTheme.typography.titleMedium
+                            )
+                        }
+                    }
+                )
+
+                if (showDatePicker.value) {
+                    DatePickerDialog(
+                        onDismissRequest = { showDatePicker.value = false },
+                        confirmButton = {
+                            TextButton(onClick = {
+                                datePickerState.selectedDateMillis?.let {
+                                    editedDate.value = Date(it)
+                                }
+                                showDatePicker.value = false
+                            }) {
+                                Text("OK")
+                            }
+                        },
+                        dismissButton = {
+                            TextButton(onClick = { showDatePicker.value = false }) {
+                                Text("Cancel")
+                            }
+                        }
+                    ) {
+                        DatePicker(state = datePickerState)
+                    }
+                }
+
+                Spacer(Modifier.height(20.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End
+                ) {
+                    TextButton(
+                        onClick = onCancelEdit,
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Text("Cancel")
+                    }
+                    Spacer(Modifier.width(12.dp))
+                    Button(
+                        onClick = {
+                            vm.updateBill(
+                                billId = bill.id,
+                                cname = editedCname.value,
+                                amount = editedAmount.value,
+                                category = editedCategory.value,
+                                pdate = editedDate.value
+                            )
+                            onCancelEdit()
+                        },
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Text("Save")
+                    }
                 }
             }
+        } else {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(20.dp)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.Top
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(64.dp)
+                            .background(
+                                color = categoryColor.copy(alpha = 0.2f),
+                                shape = RoundedCornerShape(16.dp)
+                            ),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = categoryEmoji,
+                            style = MaterialTheme.typography.headlineMedium,
+                            fontSize = 32.sp
+                        )
+                    }
 
-            Spacer(Modifier.width(12.dp))
+                    Spacer(Modifier.width(16.dp))
 
-            Column(horizontalAlignment = Alignment.End) {
-                Text(
-                    text = "$${bill.amount}",
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.primary
-                )
+                    Column(
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Text(
+                            text = bill.cname ?: "Unknown",
+                            style = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+
+                        Spacer(Modifier.height(8.dp))
+
+                        Surface(
+                            color = categoryColor.copy(alpha = 0.15f),
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            Text(
+                                text = bill.category ?: "Other",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = categoryColor,
+                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                                fontWeight = FontWeight.SemiBold
+                            )
+                        }
+
+                        Spacer(Modifier.height(12.dp))
+
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "📅",
+                                style = MaterialTheme.typography.bodyMedium
+                            )
+                            Spacer(Modifier.width(6.dp))
+                            Text(
+                                text = formattedDate,
+                                style = MaterialTheme.typography.bodyLarge,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                fontWeight = FontWeight.Medium
+                            )
+                        }
+                    }
+                }
+
+                Spacer(Modifier.height(16.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "$${bill.amount}",
+                        style = MaterialTheme.typography.headlineMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+
+                    Row {
+                        TextButton(
+                            onClick = onEditClick,
+                            colors = ButtonDefaults.textButtonColors(
+                                contentColor = MaterialTheme.colorScheme.primary
+                            )
+                        ) {
+                            Text(
+                                text = "✏️",
+                                style = MaterialTheme.typography.headlineSmall
+                            )
+                        }
+
+                        Spacer(Modifier.width(4.dp))
+
+                        TextButton(
+                            onClick = { vm.deleteBill(bill.id) },
+                            colors = ButtonDefaults.textButtonColors(
+                                contentColor = MaterialTheme.colorScheme.error
+                            )
+                        ) {
+                            Text(
+                                text = "🗑️",
+                                style = MaterialTheme.typography.headlineSmall
+                            )
+                        }
+                    }
+                }
             }
         }
     }
 }
-
 
 
 
