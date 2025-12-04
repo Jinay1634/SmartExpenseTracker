@@ -113,7 +113,7 @@ class MainActivity : ComponentActivity() {
                 UiState.Loading -> Text("Loading...")
                 UiState.AuthRequired -> LoginScreen(vm)
                 UiState.Authenticated -> BillScreen(vm)
-                UiState.ReportList ->Text("List")
+                UiState.ReportList ->BillList(vm,results)
             }
         }
     }
@@ -719,6 +719,296 @@ fun BillScreen(vm: MainViewModel) {
             }
 
             Spacer(Modifier.height(32.dp))
+        }
+    }
+}
+
+@Composable
+fun BillList(vm: MainViewModel, Bills: List<BillItem>) {
+    val categories = listOf("All", "Food & Dining", "Groceries", "Gas & Fuel", "Shopping", "Pharmacy", "Electronics", "Home Improvement", "Other")
+    val selectedCategory = remember { mutableStateOf("All") }
+    val filteredBills = remember(Bills, selectedCategory.value) {
+        if (selectedCategory.value == "All") Bills
+        else Bills.filter { it.category == selectedCategory.value }
+    }
+
+    val totalAmount = remember(filteredBills) {
+        filteredBills.sumOf { it.amount?.toDoubleOrNull() ?: 0.0 }
+    }
+
+    Box(modifier = Modifier.fillMaxSize()) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(
+                    Brush.verticalGradient(
+                        colors = listOf(
+                            MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f),
+                            MaterialTheme.colorScheme.background
+                        )
+                    )
+                )
+        ) {
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                elevation = CardDefaults.cardElevation(defaultElevation = 8.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.primaryContainer
+                ),
+                shape = RoundedCornerShape(24.dp)
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(24.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column {
+                            Text(
+                                "My Receipts",
+                                style = MaterialTheme.typography.headlineMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onPrimaryContainer
+                            )
+                            Text(
+                                "${filteredBills.size} receipts",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
+                            )
+                        }
+
+                        Column(horizontalAlignment = Alignment.End) {
+                            Text(
+                                "Total",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
+                            )
+                            Text(
+                                "$${String.format("%.2f", totalAmount)}",
+                                style = MaterialTheme.typography.headlineSmall,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onPrimaryContainer
+                            )
+                        }
+                    }
+                }
+            }
+
+            LazyRow(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                items(categories) { category ->
+                    FilterChip(
+                        selected = selectedCategory.value == category,
+                        onClick = { selectedCategory.value = category },
+                        label = {
+                            Text(
+                                category,
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontWeight = if (selectedCategory.value == category) FontWeight.Bold else FontWeight.Normal
+                            )
+                        },
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = MaterialTheme.colorScheme.primary,
+                            selectedLabelColor = MaterialTheme.colorScheme.onPrimary
+                        ),
+                        shape = RoundedCornerShape(16.dp)
+                    )
+                }
+            }
+
+            if (filteredBills.isEmpty()) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(32.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center
+                    ) {
+                        Text(
+                            "📄",
+                            style = MaterialTheme.typography.displayLarge,
+                            fontSize = 80.sp
+                        )
+                        Spacer(Modifier.height(16.dp))
+                        Text(
+                            "No receipts yet",
+                            style = MaterialTheme.typography.titleLarge,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Text(
+                            "Start scanning to add your receipts",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                        )
+                    }
+                }
+            } else {
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    items(filteredBills) { bill ->
+                        BillItemCard(bill)
+                    }
+                }
+            }
+        }
+
+        FloatingActionButton(
+            onClick = { vm.backToAddBill() },
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .padding(24.dp),
+            containerColor = MaterialTheme.colorScheme.primary,
+            shape = RoundedCornerShape(16.dp)
+        ) {
+            Row(
+                modifier = Modifier.padding(horizontal = 16.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.Center
+            ) {
+                Text(
+                    text = "+",
+                    style = MaterialTheme.typography.headlineMedium,
+                    color = MaterialTheme.colorScheme.onPrimary,
+                    fontWeight = FontWeight.Bold
+                )
+                Spacer(Modifier.width(8.dp))
+                Text(
+                    text = "Add Bill",
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.onPrimary,
+                    fontWeight = FontWeight.SemiBold
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun BillItemCard(bill: BillItem) {
+    val categoryColors = mapOf(
+        "Food & Dining" to Color(0xFFFF6B6B),
+        "Groceries" to Color(0xFF4ECDC4),
+        "Gas & Fuel" to Color(0xFFFFA726),
+        "Shopping" to Color(0xFFAB47BC),
+        "Pharmacy" to Color(0xFF26C6DA),
+        "Electronics" to Color(0xFF5C6BC0),
+        "Home Improvement" to Color(0xFF8D6E63),
+        "Other" to Color(0xFF78909C)
+    )
+
+    val categoryEmojis = mapOf(
+        "Food & Dining" to "🍽️",
+        "Groceries" to "🛒",
+        "Gas & Fuel" to "⛽",
+        "Shopping" to "🛍️",
+        "Pharmacy" to "💊",
+        "Electronics" to "📱",
+        "Home Improvement" to "🏠",
+        "Other" to "📦"
+    )
+
+    val categoryColor = categoryColors[bill.category] ?: Color.Gray
+    val categoryEmoji = categoryEmojis[bill.category] ?: "📦"
+
+    val dateFormat = SimpleDateFormat("MMM dd, yyyy", Locale.getDefault())
+    val formattedDate = bill.pdate?.let { dateFormat.format(it) } ?: "Unknown date"
+
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .animateContentSize(),
+        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface
+        ),
+        shape = RoundedCornerShape(16.dp)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(56.dp)
+                    .background(
+                        color = categoryColor.copy(alpha = 0.2f),
+                        shape = RoundedCornerShape(12.dp)
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = categoryEmoji,
+                    style = MaterialTheme.typography.headlineMedium,
+                    fontSize = 28.sp
+                )
+            }
+
+            Spacer(Modifier.width(16.dp))
+
+            Column(
+                modifier = Modifier.weight(1f)
+            ) {
+                Text(
+                    text = bill.cname ?: "Unknown",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Spacer(Modifier.height(4.dp))
+                Row(
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Surface(
+                        color = categoryColor.copy(alpha = 0.15f),
+                        shape = RoundedCornerShape(8.dp)
+                    ) {
+                        Text(
+                            text = bill.category ?: "Other",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = categoryColor,
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
+                    Spacer(Modifier.width(8.dp))
+                    Text(
+                        text = formattedDate,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+
+            Spacer(Modifier.width(12.dp))
+
+            Column(horizontalAlignment = Alignment.End) {
+                Text(
+                    text = "$${bill.amount}",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary
+                )
+            }
         }
     }
 }
