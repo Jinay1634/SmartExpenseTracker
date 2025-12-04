@@ -46,6 +46,21 @@ class MainViewModel: ViewModel() {
             }
     }
 
+    fun forgotPassword(email: String) {
+        if (email.isBlank()) {
+            _message.value = "Please enter your email address"
+            return
+        }
+
+        auth.sendPasswordResetEmail(email)
+            .addOnSuccessListener {
+                _message.value = "Password reset email sent. Please check your inbox."
+            }
+            .addOnFailureListener { e ->
+                _message.value = e.localizedMessage ?: "Failed to send password reset email"
+            }
+    }
+
     fun signUp(email: String, password: String) {
         auth.createUserWithEmailAndPassword(email, password)
             .addOnSuccessListener { _uiState.value = UiState.AuthRequired }
@@ -66,6 +81,9 @@ class MainViewModel: ViewModel() {
             repo.addBillItem(BillItem(cname =cname,amount=amount, category = category, pdate = pdate))
             _uiState.value = UiState.ReportList
         }
+    }
+    fun clearMessage() {
+        _message.value = null
     }
 
 
