@@ -13,7 +13,6 @@ import week7.st991662903.midpractice.utils.UiState
 
 class MainViewModel: ViewModel() {
     public val auth = FirebaseAuth.getInstance()
-
     private val repo = BillRepository()
     private val _uiState = MutableStateFlow<UiState>(UiState.Loading)
     val uiState: StateFlow<UiState> = _uiState
